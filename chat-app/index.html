@@ -60,43 +60,57 @@
     <ul id="messages"></ul>
     <form id="form" action="">
       <input id="input" autocomplete="off" /><button>Send</button>
-      <button id="toggle-btn">Disconnect</button>
+      <!-- <button id="toggle-btn">Disconnect</button> -->
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-      const socket = io();
+      let counter = 0;
+
+      const socket = io({
+        ackTimeout: 10000,
+        retries: 3,
+        auth: {
+          serverOffset: 0,
+        },
+      });
 
       const messages = document.getElementById("messages");
       const from = document.getElementById("form");
       const input = document.getElementById("input");
-      const toggleBtn = document.getElementById("toggle-btn");
+      // const toggleBtn = document.getElementById("toggle-btn");
 
-      toggleBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        if (socket.connected) {
-          toggleBtn.innerText = "Connect";
-          socket.disconnect();
-        } else {
-          toggleBtn.innerText = "Disconnect";
-          socket.connect();
-        }
-      });
+      // toggleBtn.addEventListener("click", (e) => {
+      //   e.preventDefault();
+      //   if (socket.connected) {
+      //     toggleBtn.innerText = "Connect";
+      //     socket.disconnect();
+      //   } else {
+      //     toggleBtn.innerText = "Disconnect";
+      //     socket.connect();
+      //   }
+      // });
 
       form.addEventListener("submit", (e) => {
         e.preventDefault();
         if (input.value) {
-          socket.emit("chat-message", input.value);
+          const clientOffset = `${socket.id}-${counter++}`;
+          socket.emit("chat-message", input.value, clientOffset);
           input.value = "";
         }
       });
 
-      socket.on("chat-message", (chatMsg) => {
+      socket.on("chat-message", (chatMsg, serverOffset) => {
         const item = document.createElement("li");
         item.textContent = chatMsg;
         messages.appendChild(item);
         window.scrollTo(0, document.body.scrollHeight);
+        socket.auth.serverOffset = serverOffset;
       });
-      socket;
+      
+      // Handle connection recovery
+      socket.on("reconnect", () => {
+        socket.auth.serverOffset = 0; // or the last known offset if you have stored it elsewhere
+      });
     </script>
   </body>
 </html>
